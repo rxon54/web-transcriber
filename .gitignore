@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+server.log
+
+# Environment variables
+.env
+.env.local
+
+# Uploads and generated content
+uploads/
+transcriptions/
+markdowns/
+
+# Temporary files
+*.tmp
+*.temp
+*.wav
+*.converted.*
+
+# API Keys (if any accidentally added)
+*key*
+*secret*
+*token*
+
+# Model files (whisper models can be large)
+models/
+whisper-models/

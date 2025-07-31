@@ -1,0 +1,64 @@
+/* instagrapi-inspired color palette and styling */
+:root {
+  --main-bg: #181c20;
+  --panel-bg: #23272b;
+  --accent: #00bcd4;
+  --accent-hover: #0097a7;
+  --text-main: #f5f5f5;
+  --text-muted: #b0b8c1;
+  --border: #2c3136;
+}
+body {
+  background: var(--main-bg);
+  color: var(--text-main);
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  margin: 0;
+}
+#left {
+  background: var(--panel-bg);
+  border-right: 1px solid var(--border);
+  color: var(--text-main);
+}
+#right {
+  background: var(--main-bg);
+  color: var(--text-main);
+}
+h2, h1 {
+  color: var(--accent);
+}
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+a:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+li {
+  margin-bottom: 1em;
+}
+pre {
+  background: var(--panel-bg);
+  color: var(--text-main);
+  padding: 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+small {
+  color: var(--text-muted);
+}
+button, .btn {
+  background: var(--accent);
+  color: var(--main-bg);
+  border: none;
+  border-radius: 4px;
+  padding: 0.5em 1em;
+  cursor: pointer;
+  margin: 0.2em 0.5em 0.2em 0;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+button:hover, .btn:hover {
+  background: var(--accent-hover);
+}
