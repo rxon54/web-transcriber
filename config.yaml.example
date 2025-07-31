@@ -1,0 +1,16 @@
+upload_dir: "uploads"
+transcriptions_dir: "transcriptions"
+markdowns_dir: "markdowns"
+server:
+  host: "0.0.0.0"
+  port: 8000
+whisper:
+  exe_path: "~/whisper.cpp/build/bin/whisper-cli"
+  model_path: "~/whisper.cpp/models/ggml-small.bin"
+  extra_args: "-l auto -nt"
+llm:
+  host: "https://api.openai.com"
+  port: 443
+  api_key: "your-openai-api-key-here"
+  model: "gpt-4o"
+  prompt: "Polish this transcript into a clean, readable Markdown document:"

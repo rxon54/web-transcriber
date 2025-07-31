@@ -28,6 +28,9 @@ server.log
 .env
 .env.local
 
+# Configuration with secrets
+config.yaml
+
 # Uploads and generated content
 uploads/
 transcriptions/
