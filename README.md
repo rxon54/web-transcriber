@@ -12,7 +12,7 @@ This project is a modular FastAPI server for audio/video transcription and post-
 ## Features
 - Accepts audio/video uploads via POST (`/upload-audio`)
 - Converts audio/video to 16-bit mono 16kHz WAV for transcription
-- Transcribes using whisper.cpp (configurable path, model, and args)
+- Transcribes using [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (configurable path, model, and args)
 - Saves original uploads, transcript text, and rich JSON metadata
 - Generates Markdown from transcripts using OpenAI-compatible LLMs
 - Modern, responsive web UI for browsing, viewing, and managing transcriptions
@@ -20,7 +20,13 @@ This project is a modular FastAPI server for audio/video transcription and post-
 - Robust error logging to `server.log`
 
 ## Requirements
+
+### System Dependencies
 - Python 3.8+
+- ffmpeg (for audio/video conversion)
+- whisper.cpp (for local transcription)
+
+### Python Dependencies
 - FastAPI
 - Uvicorn
 - PyYAML
@@ -28,27 +34,63 @@ This project is a modular FastAPI server for audio/video transcription and post-
 - pydub
 - openai (>=1.0.0)
 - markdown2
-- ffmpeg (system package, for audio/video conversion)
+
+## Installation
+
+### 1. Install System Dependencies
+
+#### Install ffmpeg
+```bash
+# Ubuntu/Debian
+sudo apt install ffmpeg
+
+# macOS
+brew install ffmpeg
+
+# Arch Linux
+sudo pacman -S ffmpeg
+```
+
+#### Install whisper.cpp
+```bash
+# Clone and build whisper.cpp
+git clone https://github.com/ggml-org/whisper.cpp.git
+cd whisper.cpp
+make
+
+# Download a model (e.g., small model)
+bash ./models/download-ggml-model.sh small
+```
+
+### 2. Install Python Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Configure the Application
+```bash
+# Copy the example config and edit with your settings
+cp config.yaml.example config.yaml
+# Edit config.yaml and add your OpenAI API key and whisper.cpp paths
+```
 
 ## Usage
-1. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-2. Ensure ffmpeg is installed:
-   ```bash
-   sudo apt install ffmpeg
-   ```
-3. Start the API server:
+## Usage
+
+### Running the Server
+1. Start the API server:
    ```bash
    uvicorn main:app --host 0.0.0.0 --reload
    ```
-4. (Optional) Start the web UI:
+
+2. (Optional) Start the web UI:
    ```bash
    uvicorn webui:app --reload --host 0.0.0.0 --port 8001
    ```
-5. Upload audio/video files via POST to `/upload-audio`.
-6. Browse/manage transcriptions at `http://localhost:8001/`.
+
+3. Upload audio/video files via POST to `/upload-audio`.
+
+4. Browse/manage transcriptions at `http://localhost:8001/`.
 
 ## Configuration
 Edit `config.yaml` to set all directories, whisper.cpp, and LLM settings. Example:
