@@ -50,3 +50,7 @@ markdowns/
 # Model files (whisper models can be large)
 models/
 whisper-models/
+
+# other
+new_plan.md
+project_tasks.txt

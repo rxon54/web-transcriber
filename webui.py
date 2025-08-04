@@ -6,8 +6,8 @@ import json
 from datetime import datetime
 import urllib.parse
 import requests
-import openai
 import markdown2
+from ollama_client import OllamaClient
 
 TRANSCRIPTIONS_DIR = "transcriptions"
 ARCHIVE_DIR = os.path.join(TRANSCRIPTIONS_DIR, "archive")
@@ -19,7 +19,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 os.makedirs(MARKDOWNS_DIR, exist_ok=True)
 
-# LLM config loader
+# LLM config loader (kept for legacy, but not used for Ollama)
 def get_llm_config():
     import yaml
     with open("config.yaml", "r") as f:
@@ -34,34 +34,19 @@ def get_llm_config():
     }
 
 def call_llm(transcript_text: str) -> dict:
-    cfg = get_llm_config()
-    client = openai.OpenAI(api_key=cfg["api_key"])
-    prompt = (
-        cfg["prompt"] +
-        "\n\nReturn a JSON object with the following fields: markdown (the polished markdown text), title (a human-friendly title for the transcript), and file_name (a short, relevant file name for the markdown, suitable for Obsidian)."
-    )
+    # Use Ollama for local LLM inference
+    client = OllamaClient()
+    response = client.generate_markdown(transcript_text)
+    import json as _json
     try:
-        response = client.chat.completions.create(
-            model=cfg["model"],
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": transcript_text}
-            ]
-        )
-        import json as _json
-        content = response.choices[0].message.content
         # Try to extract JSON from the response
-        try:
-            # If the LLM returns markdown code block, strip it
-            if content.strip().startswith('```json'):
-                content = content.strip().split('```json')[1].split('```')[0].strip()
-            elif content.strip().startswith('```'):
-                content = content.strip().split('```')[1].split('```')[0].strip()
-            return _json.loads(content)
-        except Exception:
-            return {"markdown": content, "title": "", "file_name": ""}
-    except Exception as e:
-        return {"markdown": f"Error: {e}", "title": "", "file_name": ""}
+        if response.strip().startswith('```json'):
+            response = response.strip().split('```json')[1].split('```')[0].strip()
+        elif response.strip().startswith('```'):
+            response = response.strip().split('```')[1].split('```')[0].strip()
+        return _json.loads(response)
+    except Exception:
+        return {"markdown": response, "title": "", "file_name": ""}
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):

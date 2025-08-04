@@ -3,11 +3,11 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Request, Backgroun
 from fastapi.responses import JSONResponse
 import yaml
 import io
-from pydub import AudioSegment
 import subprocess
 import logging
 from datetime import datetime
 import json
+from audio_utils import convert_audio_ffmpeg, get_audio_duration_ffprobe
 
 # Load configuration from config.yaml
 with open("config.yaml", "r") as f:
@@ -28,15 +28,7 @@ logging.basicConfig(
 app = FastAPI()
 
 def convert_audio(input_bytes: bytes, input_format: str, output_format: str = "wav", sample_width: int = 2, channels: int = 1, frame_rate: int = 16000) -> bytes:
-    """
-    Convert audio bytes to the desired format and parameters.
-    Default: 16-bit WAV, mono, 16kHz.
-    """
-    audio = AudioSegment.from_file(io.BytesIO(input_bytes), format=input_format)
-    audio = audio.set_sample_width(sample_width).set_channels(channels).set_frame_rate(frame_rate)
-    out_io = io.BytesIO()
-    audio.export(out_io, format=output_format)
-    return out_io.getvalue()
+    return convert_audio_ffmpeg(input_bytes, input_format, output_format, sample_width, channels, frame_rate)
 
 # Add whisper.cpp config loading
 def get_whisper_config():
@@ -71,7 +63,7 @@ def transcribe_with_whisper(audio_path: str, transcript_name: str) -> str:
         return f"(Transcription error: {e})"
 
 @app.post("/upload-audio")
-async def upload_audio(file: UploadFile = File(...), request: Request = None, background_tasks: BackgroundTasks = None):
+async def upload_audio(request: Request, background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file uploaded.")
     input_bytes = await file.read()
@@ -80,8 +72,7 @@ async def upload_audio(file: UploadFile = File(...), request: Request = None, ba
     # Extract source from header
     source = request.headers.get("source", "unknown") if request else "unknown"
     # Get audio length from original file
-    audio = AudioSegment.from_file(io.BytesIO(input_bytes), format=input_format)
-    audio_length_sec = round(len(audio) / 1000, 2)
+    audio_length_sec = round(get_audio_duration_ffprobe(input_bytes, input_format), 2)
     file_size = len(input_bytes)
     # Save original file (archive)
     original_path = os.path.join(UPLOAD_DIR, file.filename)
