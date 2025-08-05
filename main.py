@@ -119,8 +119,42 @@ async def upload_audio(request: Request, background_tasks: BackgroundTasks, file
         meta["status"] = "success" if transcript and not transcript.startswith("(") else "error"
         meta["error"] = None if transcript and not transcript.startswith("(") else transcript
         meta["transcription_text"] = transcript
+        # Save after transcription
         with open(json_path, "w") as jf:
             json.dump(meta, jf, ensure_ascii=False, indent=2)
+        # --- Automated LLM Markdown Polishing ---
+        try:
+            from ollama_client import OllamaClient
+            import logging
+            logging.basicConfig(filename="server.log", level=logging.INFO)
+            if transcript and meta["status"] == "success":
+                client = OllamaClient()
+                llm_result = client.generate_markdown(transcript)
+                import json as _json
+                # Parse if string
+                if isinstance(llm_result, str):
+                    try:
+                        llm_result = _json.loads(llm_result)
+                    except Exception:
+                        llm_result = {"markdown": llm_result, "title": "", "file_name": ""}
+                md_content = llm_result.get("markdown", "")
+                md_title = llm_result.get("title", "")
+                md_file_name = llm_result.get("file_name") or (transcript_name + ".md")
+                md_path = os.path.join("markdowns", md_file_name)
+                with open(md_path, "w") as mf:
+                    mf.write(md_content)
+                meta["markdown_file"] = md_file_name
+                if md_title:
+                    meta["markdown_title"] = md_title
+                with open(json_path, "w") as jf:
+                    json.dump(meta, jf, ensure_ascii=False, indent=2)
+                logging.info(f"[LLM MARKDOWN] Saved {md_file_name} for {transcript_name}")
+        except Exception as e:
+            try:
+                with open("server.log", "a") as logf:
+                    logf.write(f"[LLM ERROR] {transcript_name}: {e}\n")
+            except Exception:
+                pass
     if background_tasks is not None:
         background_tasks.add_task(background_transcribe)
     return JSONResponse(content={"status": "processing", "message": "Transcription started. Check the web UI for results.", "transcription_id": transcript_name})

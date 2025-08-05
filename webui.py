@@ -37,14 +37,24 @@ def call_llm(transcript_text: str) -> dict:
     # Use Ollama for local LLM inference
     client = OllamaClient()
     response = client.generate_markdown(transcript_text)
-    import json as _json
+    # Debug: log the raw response from OllamaClient
     try:
-        # Try to extract JSON from the response
-        if response.strip().startswith('```json'):
-            response = response.strip().split('```json')[1].split('```')[0].strip()
-        elif response.strip().startswith('```'):
-            response = response.strip().split('```')[1].split('```')[0].strip()
-        return _json.loads(response)
+        with open("server.log", "a") as logf:
+            logf.write(f"[CALL_LLM RAW RESPONSE]: {repr(response)}\n")
+    except Exception:
+        pass
+    import json as _json
+    # If response is a dict, return as is
+    if isinstance(response, dict):
+        return response
+    # If response is a string, try to parse as JSON
+    try:
+        resp_str = response.strip()
+        if resp_str.startswith('```json'):
+            resp_str = resp_str.split('```json')[1].split('```')[0].strip()
+        elif resp_str.startswith('```'):
+            resp_str = resp_str.split('```')[1].split('```')[0].strip()
+        return _json.loads(resp_str)
     except Exception:
         return {"markdown": response, "title": "", "file_name": ""}
 
@@ -114,6 +124,7 @@ def index(request: Request):
     #left {{ width: 300px; min-width: 200px; padding: 1em; height: 100vh; overflow-y: auto; }}
     #right {{ flex: 1; padding: 2em; }}
     ul {{ list-style: none; padding: 0; }}
+    .md-rendered {{ font-family: 'DejaVu Sans Mono', 'Consolas', 'Menlo', 'Monaco', monospace; }}
     .md-rendered h1, .md-rendered h2, .md-rendered h3, .md-rendered h4, .md-rendered h5, .md-rendered h6 {{ color: var(--accent); }}
     .md-rendered pre, .md-rendered code {{ background: #181c20; color: #00bcd4; border-radius: 4px; padding: 0.2em 0.4em; }}
     .md-rendered a {{ color: var(--accent); }}
@@ -187,9 +198,32 @@ def generate_markdown(fname: str):
     if not transcript_text:
         return HTMLResponse("<b>No transcript text found.</b>")
     llm_result = call_llm(transcript_text)
+    # Log the raw LLM result for debugging
+    try:
+        with open("server.log", "a") as logf:
+            logf.write(f"[LLM RESPONSE] {fname}: {repr(llm_result)}\n")
+    except Exception:
+        pass
+    # If LLM returns an empty dict, show error and log warning
+    if isinstance(llm_result, dict) and not llm_result:
+        try:
+            with open("server.log", "a") as logf:
+                logf.write(f"[LLM WARNING] {fname}: LLM returned empty dict.\n")
+        except Exception:
+            pass
+        return HTMLResponse(f"<b>Error: LLM returned an empty response. Check your Ollama model and prompt configuration.</b> <a href='/?file={fname}'>Back</a>")
     md_content = llm_result.get("markdown", "")
     md_title = llm_result.get("title", "")
     md_file_name = llm_result.get("file_name") or (os.path.splitext(fname)[0] + ".md")
+    # Fallback: if markdown is empty, use the raw response as markdown
+    if not md_content or not md_content.strip():
+        if isinstance(llm_result, dict):
+            for v in llm_result.values():
+                if isinstance(v, str) and v.strip():
+                    md_content = v
+                    break
+        if not md_content or not md_content.strip():
+            md_content = str(llm_result)
     md_path = os.path.join(MARKDOWNS_DIR, md_file_name)
     with open(md_path, "w") as mf:
         mf.write(md_content)
@@ -199,6 +233,9 @@ def generate_markdown(fname: str):
         meta["markdown_title"] = md_title
     with open(path, "w") as jf:
         json.dump(meta, jf, ensure_ascii=False, indent=2)
+    # Show warning if markdown is still empty
+    if not md_content.strip():
+        return HTMLResponse(f"<b>Warning: Markdown is empty. Check server.log for LLM response.</b> <a href='/download_md/{md_file_name}'>Download MD</a> | <a href='/?file={fname}'>Back</a>")
     return HTMLResponse(f"<b>Markdown generated and saved as {md_file_name}.</b> <a href='/download_md/{md_file_name}'>Download MD</a> | <a href='/?file={fname}'>Back</a>")
 
 @app.get("/download_md/{md_name}")
