@@ -6,7 +6,7 @@ This project is a modular FastAPI server for audio/video transcription and post-
 - Transcription using whisper.cpp (configurable via config.yaml)
 - Saving original uploads, JSON metadata, and transcript text
 - Web UI for browsing, viewing, and managing transcriptions
-- Markdown generation from transcripts using an LLM (OpenAI API compatible)
+- Markdown generation from transcripts using a local LLM (Ollama, OpenAI-compatible)
 - All directories and API/configs are set in config.yaml
 
 ## Features
@@ -14,10 +14,11 @@ This project is a modular FastAPI server for audio/video transcription and post-
 - Converts audio/video to 16-bit mono 16kHz WAV for transcription
 - Transcribes using [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (configurable path, model, and args)
 - Saves original uploads, transcript text, and rich JSON metadata
-- Generates Markdown from transcripts using OpenAI-compatible LLMs
+- Generates Markdown from transcripts using a local LLM via [Ollama](https://ollama.com/) (configurable prompt/model)
 - Modern, responsive web UI for browsing, viewing, and managing transcriptions
 - All configuration (paths, API keys, prompts, etc.) is read from `config.yaml`
 - Robust error logging to `server.log`
+- Systemd service files for production deployment
 
 ## Requirements
 
@@ -25,14 +26,14 @@ This project is a modular FastAPI server for audio/video transcription and post-
 - Python 3.8+
 - ffmpeg (for audio/video conversion)
 - whisper.cpp (for local transcription)
+- [Ollama](https://ollama.com/) (for local LLM markdown generation)
 
 ### Python Dependencies
 - FastAPI
 - Uvicorn
 - PyYAML
 - python-multipart
-- pydub
-- openai (>=1.0.0)
+- requests
 - markdown2
 
 ## Installation
@@ -62,8 +63,15 @@ make
 bash ./models/download-ggml-model.sh small
 ```
 
+#### Install Ollama
+```bash
+# See https://ollama.com/download for your platform
+```
+
 ### 2. Install Python Dependencies
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -71,10 +79,9 @@ pip install -r requirements.txt
 ```bash
 # Copy the example config and edit with your settings
 cp config.yaml.example config.yaml
-# Edit config.yaml and add your OpenAI API key and whisper.cpp paths
+# Edit config.yaml and add your Ollama and whisper.cpp paths
 ```
 
-## Usage
 ## Usage
 
 ### Running the Server
@@ -83,14 +90,23 @@ cp config.yaml.example config.yaml
    uvicorn main:app --host 0.0.0.0 --reload
    ```
 
-2. (Optional) Start the web UI:
+2. Start the web UI:
    ```bash
    uvicorn webui:app --reload --host 0.0.0.0 --port 8001
    ```
 
-3. Upload audio/video files via POST to `/upload-audio`.
+3. (Production) Use the provided systemd service files:
+   ```bash
+   sudo cp webtranscriber-main.service /etc/systemd/system/
+   sudo cp webtranscriber-webui.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now webtranscriber-main
+   sudo systemctl enable --now webtranscriber-webui
+   ```
 
-4. Browse/manage transcriptions at `http://localhost:8001/`.
+4. Upload audio/video files via POST to `/upload-audio`.
+
+5. Browse/manage transcriptions at `http://localhost:8001/`.
 
 ## Configuration
 Edit `config.yaml` to set all directories, whisper.cpp, and LLM settings. Example:
@@ -106,11 +122,10 @@ whisper:
   exe_path: "~/whisper.cpp/build/bin/whisper-cli"
   model_path: "~/whisper.cpp/models/ggml-small.bin"
   extra_args: "-l auto -nt"
-llm:
-  host: "https://api.openai.com"
-  port: 443
-  api_key: "sk-..."
-  model: "gpt-4"
+ollama:
+  host: "http://localhost"
+  port: 11434
+  model: "llama3"
   prompt: "Polish this transcript into a clean, readable Markdown document:"
 ```
 
@@ -122,4 +137,6 @@ Each transcription JSON includes:
 - Only original uploads are archived; temp files are deleted after use.
 - All file operations are robust to errors and race conditions.
 - Never expose API keys or sensitive config in responses or logs.
-- The web UI uses a modern, accessible design inspired by instagrapi docs.
+- The web UI uses a modern, accessible design with orange-accented headers and improved readability.
+- Markdown generation is fully automated after transcription completes.
+- End-to-end tests and systemd service files are provided for production use.
