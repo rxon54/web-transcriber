@@ -61,7 +61,16 @@ def call_llm(transcript_text: str) -> dict:
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
     files = [f for f in os.listdir(TRANSCRIPTIONS_DIR) if f.endswith(".json") and os.path.isfile(os.path.join(TRANSCRIPTIONS_DIR, f))]
-    files.sort(reverse=True)
+    # Sort by datetime descending
+    def get_dt(fname):
+        try:
+            with open(os.path.join(TRANSCRIPTIONS_DIR, fname), "r") as jf:
+                meta = json.load(jf)
+            dt = meta.get("datetime", "")
+            return datetime.fromisoformat(dt.replace("Z", "")) if dt else datetime.min
+        except Exception:
+            return datetime.min
+    files.sort(key=get_dt, reverse=True)
     # Build left panel: list of files
     file_links = []
     for fname in files:
@@ -70,14 +79,19 @@ def index(request: Request):
         dt = meta.get("datetime", "")
         orig = meta.get("original_filename", "")
         md_title = meta.get("markdown_title", "")
+        md_file = meta.get("markdown_file", "")
         # Format datetime to human-friendly string
         try:
             dt_obj = datetime.fromisoformat(dt.replace("Z", ""))
             dt_str = dt_obj.strftime("%b %d, %Y %H:%M")
         except Exception:
             dt_str = dt
-        # Show file name, then markdown title (if any), then date/time
-        file_links.append(f"<li><a href='/?file={fname}'>{orig}{'<br><span style=\"color:var(--accent);font-weight:bold;\">'+md_title+'</span>' if md_title else ''}<br><small>{dt_str}</small></a></li>")
+        # Show: title, file_name, date
+        file_links.append(f"<li><a href='/?file={fname}'>"
+                         f"<span style='color:var(--accent);font-weight:bold;font-size:1.1em;'>{md_title or '(No Title)'}</span>"
+                         f"<br><span style='color:#aaa;font-size:0.95em;'>{md_file or fname}</span>"
+                         f"<br><small style='color:#aaa;'>{dt_str}</small>"
+                         f"</a></li>")
     # Parse query param
     url = str(request.url)
     parsed = urllib.parse.urlparse(url)
@@ -100,7 +114,7 @@ def index(request: Request):
             if os.path.exists(md_path):
                 with open(md_path, "r") as mf:
                     md_content = mf.read()
-                md_html = f"<div style='margin-bottom:2em;'><h3>Markdown</h3><div class='md-rendered' style='background:#23272b;color:#f5f5f5;padding:1em;border-radius:8px;overflow-x:auto;'>{markdown2.markdown(md_content)}</div><a href='/download_md/{md_name}'>Download MD</a></div>"
+                md_html = f"<div style='margin-bottom:2em;'><h2>Markdown</h2><div class='md-rendered' style='background:#23272b;color:#f5f5f5;padding:1em;border-radius:8px;overflow-x:auto;max-width:60ch;margin-left:0;margin-right:auto;text-align:left;'>{markdown2.markdown(md_content)}</div><a href='/download_md/{md_name}'>Download MD</a></div>"
         btns = f"""
         <a href='/download/{fname}'>Download JSON</a> |
         <a href='/generate_md/{fname}'>Generate MD</a> |
@@ -109,9 +123,8 @@ def index(request: Request):
         html = f"""
         <div>
         {md_html}
-        <h2>{meta.get('original_filename','')}</h2>
-        {'<h4 style="color:var(--accent);margin-top:0;">'+md_title+'</h4>' if md_title else ''}
-        <pre style='white-space: pre-wrap;'>{text}</pre>
+        <h3>Raw transcription from original audio file ({meta.get('original_filename','')})</h3>
+        <div style='background:#23272b;color:#f5f5f5;padding:1em;border-radius:8px;overflow-x:auto;max-width:60ch;margin-left:0;margin-right:auto;text-align:left;'><pre style='white-space: pre-wrap;margin:0;background:none;color:inherit;font-family:inherit;font-family:inherit;'>{text}</pre></div>
         {btns}
         </div>
         """
@@ -120,14 +133,37 @@ def index(request: Request):
     <html><head><title>Transcriptions</title>
     <link rel="stylesheet" href="/static/instagrapi.css">
     <style>
-    body {{ display: flex; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; }}
-    #left {{ width: 300px; min-width: 200px; padding: 1em; height: 100vh; overflow-y: auto; }}
+    :root {{
+      --accent: #ff9800;
+      --header-bg: #23272b;
+      --header-fg: #fff3e0;
+      --panel-bg: #181c20;
+    }}
+    body {{ display: flex; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; background: var(--panel-bg); color: #f5f5f5; }}
+    #left {{ width: 300px; min-width: 200px; padding: 1em; height: 100vh; overflow-y: auto; background: #20232a; }}
     #right {{ flex: 1; padding: 2em; }}
     ul {{ list-style: none; padding: 0; }}
+    h2, h3, h4, h5, h6 {{
+      color: #181c20;
+      background: linear-gradient(90deg, var(--accent) 0%, #ffb74d 100%);
+      padding: 0.2em 0.7em 0.2em 0.5em;
+      border-radius: 6px;
+      margin-bottom: 0.5em;
+      margin-top: 0.5em;
+      letter-spacing: 0.01em;
+      font-weight: 700;
+      box-shadow: 0 2px 8px 0 #0002;
+      display: inline-block;
+    }}
+    #left h2 {{ color: #181c20; background: var(--accent); box-shadow: none; }}
     .md-rendered {{ font-family: 'DejaVu Sans Mono', 'Consolas', 'Menlo', 'Monaco', monospace; }}
-    .md-rendered h1, .md-rendered h2, .md-rendered h3, .md-rendered h4, .md-rendered h5, .md-rendered h6 {{ color: var(--accent); }}
-    .md-rendered pre, .md-rendered code {{ background: #181c20; color: #00bcd4; border-radius: 4px; padding: 0.2em 0.4em; }}
+    .md-rendered h1, .md-rendered h2, .md-rendered h3, .md-rendered h4, .md-rendered h5, .md-rendered h6 {{
+      color: var(--accent); background: none; box-shadow: none; }}
+    .md-rendered pre, .md-rendered code {{ background: #181c20; color: #ff9800; border-radius: 4px; padding: 0.2em 0.4em; }}
     .md-rendered a {{ color: var(--accent); }}
+    a {{ color: var(--accent); text-decoration: none; }}
+    a:hover {{ text-decoration: underline; }}
+    li {{ margin-bottom: 1.1em; }}
     </style>
     </head><body>
     <div id='left'>
