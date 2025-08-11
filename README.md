@@ -45,22 +45,12 @@ This project is a modular FastAPI server for audio/video transcription and post-
 # Ubuntu/Debian
 sudo apt install ffmpeg
 
-# macOS
-brew install ffmpeg
-
-# Arch Linux
-sudo pacman -S ffmpeg
 ```
 
 #### Install whisper.cpp
 ```bash
-# Clone and build whisper.cpp
-git clone https://github.com/ggml-org/whisper.cpp.git
-cd whisper.cpp
-make
+# See https://github.com/ggml-org/whisper.cpp
 
-# Download a model (e.g., small model)
-bash ./models/download-ggml-model.sh small
 ```
 
 #### Install Ollama
@@ -108,16 +98,46 @@ cp config.yaml.example config.yaml
 
 5. Browse/manage transcriptions at `http://localhost:8001/`.
 
-## Configuration
-Edit `config.yaml` to set all directories, whisper.cpp, and LLM settings. Example:
+## Debian Package Installation
+
+### 1. Install System Dependencies
+- Python 3.8+
+- ffmpeg (for audio/video conversion)
+- whisper.cpp (for local transcription)
+- [Ollama](https://ollama.com/) (for local LLM markdown generation)
+
+### 2. Install the .deb Package
+```bash
+sudo dpkg -i web-transcriber_1.0.0.deb
+```
+- This will install all application files to `/opt/web-transcriber`.
+- A dedicated system user `webtranscriber` will be created if it does not exist.
+- A Python virtual environment will be created in `/opt/web-transcriber/.venv` and all dependencies installed automatically.
+- Systemd services will be installed and started for both backend and frontend.
+
+### 3. Services
+- API backend: `webtranscriber-main` (serves FastAPI backend)
+- Web UI: `webtranscriber-webui` (serves frontend web interface)
+
+Check status:
+```bash
+systemctl status webtranscriber-main webtranscriber-webui
+```
+
+### 4. Configuration
+- Edit `/opt/web-transcriber/config.yaml` to set all directories, whisper.cpp, and LLM settings.
+- Example:
 
 ```yaml
+backend_server:
+  host: "0.0.0.0"
+  port: 8000
+frontend_server:
+  host: "0.0.0.0"
+  port: 8001
 upload_dir: "uploads"
 transcriptions_dir: "transcriptions"
 markdowns_dir: "markdowns"
-server:
-  host: "0.0.0.0"
-  port: 8000
 whisper:
   exe_path: "~/whisper.cpp/build/bin/whisper-cli"
   model_path: "~/whisper.cpp/models/ggml-small.bin"
@@ -129,11 +149,38 @@ ollama:
   prompt: "Polish this transcript into a clean, readable Markdown document:"
 ```
 
+### 5. Usage
+- Upload audio/video files via POST to `/upload-audio`.
+- Browse/manage transcriptions at `http://localhost:8001/`.
+
+## Manual (Development) Installation
+
+If you are not using the .deb package, you can install manually:
+
+1. Install system dependencies (see above).
+2. Clone the repo and create a venv:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+3. Copy and edit `config.yaml.example` as needed.
+4. Start the backend:
+   ```bash
+   python main.py --backend
+   ```
+5. Start the frontend:
+   ```bash
+   python main.py --frontend
+   ```
+
 ## Metadata
 Each transcription JSON includes:
 - datetime, source, original_filename, audio_length_sec, file_size, whisper_model, whisper_args, status, error, language, transcription_text, markdown_file, markdown_title
 
 ## Notes
+- All services run as the `webtranscriber` system user for security.
+- All files and data are stored in `/opt/web-transcriber`.
 - Only original uploads are archived; temp files are deleted after use.
 - All file operations are robust to errors and race conditions.
 - Never expose API keys or sensitive config in responses or logs.
