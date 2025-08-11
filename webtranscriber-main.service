@@ -4,8 +4,8 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/rxon/projects/web-transcriber
-ExecStart=/usr/bin/env uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+WorkingDirectory=/opt/web-transcriber
+ExecStart=/opt/web-transcriber/.venv/bin/python main.py --backend
 Restart=on-failure
 User=rxon
 

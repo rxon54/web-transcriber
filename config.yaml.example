@@ -1,9 +1,12 @@
 upload_dir: "uploads"
 transcriptions_dir: "transcriptions"
 markdowns_dir: "markdowns"
-server:
+backend_server:
   host: "0.0.0.0"
   port: 8000
+frontend_server:
+  host: "0.0.0.0"
+  port: 8001
 whisper:
   exe_path: "~/whisper.cpp/build/bin/whisper-cli"
   model_path: "~/whisper.cpp/models/ggml-small.bin"

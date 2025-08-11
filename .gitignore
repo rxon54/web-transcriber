@@ -9,6 +9,9 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.github/
+
+
 
 # IDE
 .vscode/
@@ -22,7 +25,6 @@ Thumbs.db
 
 # Logs
 *.log
-server.log
 
 # Environment variables
 .env
@@ -35,6 +37,8 @@ config.yaml
 uploads/
 transcriptions/
 markdowns/
+tests/
+
 
 # Temporary files
 *.tmp
@@ -54,3 +58,4 @@ whisper-models/
 # other
 new_plan.md
 project_tasks.txt
+AGENTS.md

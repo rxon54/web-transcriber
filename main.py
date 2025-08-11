@@ -8,6 +8,8 @@ import logging
 from datetime import datetime
 import json
 from audio_utils import convert_audio_ffmpeg, get_audio_duration_ffprobe
+import sys
+import argparse
 
 # Load configuration from config.yaml
 with open("config.yaml", "r") as f:
@@ -158,3 +160,30 @@ async def upload_audio(request: Request, background_tasks: BackgroundTasks, file
     if background_tasks is not None:
         background_tasks.add_task(background_transcribe)
     return JSONResponse(content={"status": "processing", "message": "Transcription started. Check the web UI for results.", "transcription_id": transcript_name})
+
+def run_backend():
+    import uvicorn
+    with open("config.yaml", "r") as f:
+        config = yaml.safe_load(f)
+    backend_cfg = config.get("backend_server", {"host": "0.0.0.0", "port": 8000})
+    uvicorn.run("main:app", host=backend_cfg.get("host", "0.0.0.0"), port=backend_cfg.get("port", 8000))
+
+def run_frontend():
+    import uvicorn
+    with open("config.yaml", "r") as f:
+        config = yaml.safe_load(f)
+    frontend_cfg = config.get("frontend_server", {"host": "0.0.0.0", "port": 8001})
+    uvicorn.run("webui:app", host=frontend_cfg.get("host", "0.0.0.0"), port=frontend_cfg.get("port", 8001))
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Web Transcriber launcher")
+    parser.add_argument("--backend", action="store_true", help="Run backend API server (main:app)")
+    parser.add_argument("--frontend", action="store_true", help="Run frontend web UI (webui:app)")
+    args = parser.parse_args()
+    if args.backend:
+        run_backend()
+    elif args.frontend:
+        run_frontend()
+    else:
+        print("Specify --backend or --frontend")
+        sys.exit(1)

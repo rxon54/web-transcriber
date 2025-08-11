@@ -4,9 +4,8 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/rxon/projects/web-transcriber
-Environment="PATH=/home/rxon/projects/web-transcriber/.venv/bin:/usr/bin:/bin"
-ExecStart=/home/rxon/projects/web-transcriber/.venv/bin/uvicorn webui:app --host 0.0.0.0 --port 8001 --reload
+WorkingDirectory=/opt/web-transcriber
+ExecStart=/opt/web-transcriber/.venv/bin/python main.py --frontend
 Restart=on-failure
 User=rxon
 
